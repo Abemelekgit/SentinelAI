@@ -215,7 +215,9 @@ function buildGithubComments(
   const result: Array<{ path: string; line: number; body: string }> = [];
 
   for (const raw of comments) {
-    const fileDiff = fileMap.get(raw.file);
+    // Normalise paths: strip leading "./" or "/" that some LLMs emit
+    const normalisedPath = raw.file.replace(/^(\.\/|\/)+/, "");
+    const fileDiff = fileMap.get(normalisedPath) ?? fileMap.get(raw.file);
     if (!fileDiff) continue; // AI hallucinated a file path — skip
 
     // Verify the line is within what we actually reviewed
@@ -230,7 +232,7 @@ function buildGithubComments(
     const c = { ...raw, line };
 
     result.push({
-      path: c.file,
+      path: fileDiff.path, // always use the canonical path from the diff
       line: c.line,
       body: `${SEVERITY_EMOJI[c.severity] ?? "⚪"} **[${c.severity}]** ${c.message}`,
     });
