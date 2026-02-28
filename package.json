@@ -10,6 +10,7 @@
     "build": "tsc",
     "dev": "ts-node --esm src/index.ts",
     "start": "node dist/index.js",
+    "test": "TS_NODE_PROJECT=tsconfig.test.json node -r ts-node/register src/services/diff.test.ts",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit"
   },
