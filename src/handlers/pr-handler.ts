@@ -258,7 +258,10 @@ async function postReview(
   pullNumber: number
 ): Promise<void> {
   const scoreBar = buildScoreBar(review.score);
-  const summaryBody = buildSummaryBody(review, scoreBar, comments.length);
+  const version: string = (process.env["npm_package_version"] ?? "1.0.0");
+  const ts = new Date().toUTCString().replace(/ GMT$/, " UTC");
+  const footer = `_Review generated at ${ts} · SentinelAI v${version}_`;
+  const summaryBody = buildSummaryBody(review, scoreBar, comments.length, footer);
 
   const event: "COMMENT" | "APPROVE" | "REQUEST_CHANGES" =
     review.score >= 8 && comments.length === 0
