@@ -44,6 +44,27 @@ export function registerDashboard(router: Router): void {
     });
   });
 
+  router.get("/api/health", (_req: Request, res: Response) => {
+    const uptime = Math.floor((Date.now() - startTime.getTime()) / 1000);
+    const memMb = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1);
+    res.json({
+      status: "healthy",
+      version: process.env["npm_package_version"] ?? "unknown",
+      nodeVersion: process.version,
+      uptime,
+      memory: { heapUsedMb: parseFloat(memMb) },
+      ai: {
+        provider: config.aiProvider,
+        model: config.aiModel,
+        configured:
+          config.aiProvider === "gemini"
+            ? Boolean(config.geminiApiKey)
+            : Boolean(config.openaiApiKey),
+      },
+      reviewsThisSession: reviewLog.length,
+    });
+  });
+
   router.get("/api/reviews", (_req: Request, res: Response) => {
     res.json(reviewLog.slice(-50).reverse());
   });
