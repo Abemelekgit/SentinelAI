@@ -21,6 +21,7 @@ import {
   validateSentinelConfig,
   type SentinelConfig,
 } from "../utils/sentinel-config.js";
+import { buildScoreBar, buildSummaryBody } from "../utils/format.js";
 
 // Cache parsed .sentinel.yaml per commit SHA to avoid redundant API calls
 // on the same commit (e.g. re-runs within the same webhook delivery).
@@ -280,37 +281,4 @@ async function postReview(
   });
 }
 
-/** Unicode progress bar for the score (1–10). */
-function buildScoreBar(score: number): string {
-  const filled = Math.round(score);
-  const empty = 10 - filled;
-  return "█".repeat(filled) + "░".repeat(empty);
-}
-
-/** Markdown summary body posted as the top-level review comment. */
-function buildSummaryBody(
-  review: ReviewResponse,
-  scoreBar: string,
-  postedComments: number
-): string {
-  const highCount = review.comments.filter((c) => c.severity === "HIGH").length;
-  const medCount = review.comments.filter((c) => c.severity === "MED").length;
-  const lowCount = review.comments.filter((c) => c.severity === "LOW").length;
-
-  return [
-    "## 🤖 SentinelAI Code Review",
-    "",
-    `> ${review.summary}`,
-    "",
-    `### Score: ${review.score}/10  \`${scoreBar}\``,
-    "",
-    "| Severity | Count |",
-    "|----------|-------|",
-    `| 🔴 HIGH  | ${highCount} |`,
-    `| 🟡 MED   | ${medCount}  |`,
-    `| 🔵 LOW   | ${lowCount}  |`,
-    `| **Total posted** | ${postedComments} |`,
-    "",
-    "_Powered by SentinelAI — your autonomous senior engineer._",
-  ].join("\n");
-}
+// buildScoreBar and buildSummaryBody are now in src/utils/format.ts
