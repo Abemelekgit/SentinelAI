@@ -64,6 +64,27 @@ Severity guidelines:
   MED   — Code smell or risk that should be addressed soon.
   LOW   — Minor improvement, style note, or optimisation suggestion.`;
 
+// ─── Retry helper ────────────────────────────────────────────────────────────
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  delayMs = 1000
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        await new Promise((res) => setTimeout(res, delayMs * attempt));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export class AIService {
@@ -85,10 +106,11 @@ export class AIService {
   async review(serialisedDiff: string): Promise<ReviewResponse> {
     const userPrompt = `Here is the git diff to review:\n\n${serialisedDiff}`;
 
-    const raw =
+    const raw = await withRetry(() =>
       config.aiProvider === "gemini"
-        ? await this.callGemini(userPrompt)
-        : await this.callOpenAI(userPrompt);
+        ? this.callGemini(userPrompt)
+        : this.callOpenAI(userPrompt)
+    );
 
     return this.parseResponse(raw);
   }
