@@ -29,6 +29,10 @@ interface SentinelConfig {
   postSummary?: boolean;
 }
 
+// Cache parsed .sentinel.yaml per commit SHA to avoid redundant API calls
+// on the same commit (e.g. re-runs within the same webhook delivery).
+const sentinelConfigCache = new Map<string, SentinelConfig>();
+
 // ─── Handler registration ─────────────────────────────────────────────────────
 
 export function registerPRHandler(app: Probot): void {
@@ -130,22 +134,37 @@ async function fetchDiff(context: Context<"pull_request">): Promise<string | nul
 async function loadSentinelConfig(
   context: Context<"pull_request">
 ): Promise<SentinelConfig> {
+  const sha = context.payload.pull_request.head.sha;
+
+  if (sentinelConfigCache.has(sha)) {
+    return sentinelConfigCache.get(sha) as SentinelConfig;
+  }
+
+  let result: SentinelConfig = {};
   try {
     const resp = await context.octokit.repos.getContent({
       ...context.repo(),
       path: ".sentinel.yaml",
-      ref: context.payload.pull_request.head.sha,
+      ref: sha,
     });
 
     if ("content" in resp.data && typeof resp.data.content === "string") {
       const decoded = Buffer.from(resp.data.content, "base64").toString("utf-8");
       const parsed = yaml.load(decoded) as SentinelConfig;
-      return parsed ?? {};
+      result = parsed ?? {};
     }
   } catch {
     // File doesn't exist or is unreadable — use defaults
   }
-  return {};
+
+  sentinelConfigCache.set(sha, result);
+  // Evict old entries to prevent unbounded growth (keep last 50)
+  if (sentinelConfigCache.size > 50) {
+    const firstKey = sentinelConfigCache.keys().next().value;
+    if (firstKey !== undefined) sentinelConfigCache.delete(firstKey);
+  }
+
+  return result;
 }
 
 /** Convert AI comments to the shape expected by Octokit's createReview. */
