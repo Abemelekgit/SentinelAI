@@ -9,24 +9,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import { config } from "../config.js";
+import type { Severity, ReviewComment, ReviewResponse } from "../types.js";
 
-// ─── Response schema ──────────────────────────────────────────────────────────
-
-export type Severity = "HIGH" | "MED" | "LOW";
-
-export interface ReviewComment {
-  file: string;
-  line: number;
-  message: string;
-  severity: Severity;
-}
-
-export interface ReviewResponse {
-  summary: string;
-  /** Code-quality score 1–10 */
-  score: number;
-  comments: ReviewComment[];
-}
+// ─── Re-export for consumers who import from this module ─────────────────────
+export type { Severity, ReviewComment, ReviewResponse };
 
 // ─── System / Brain Prompt ────────────────────────────────────────────────────
 

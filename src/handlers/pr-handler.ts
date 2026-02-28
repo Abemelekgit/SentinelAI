@@ -12,7 +12,9 @@
 import type { Probot, Context } from "probot";
 import yaml from "js-yaml";
 import { DiffService, type FileDiff } from "../services/diff.js";
-import { AIService, type ReviewComment, type ReviewResponse } from "../services/ai.js";
+import { AIService } from "../services/ai.js";
+import type { ReviewComment, ReviewResponse } from "../types.js";
+import { SEVERITY_RANK, SEVERITY_EMOJI } from "../types.js";
 import { config } from "../config.js";
 import { reviewLog } from "./dashboard.js";
 
@@ -26,8 +28,6 @@ interface SentinelConfig {
   /** Post a top-level review summary comment  (default: true) */
   postSummary?: boolean;
 }
-
-const SEVERITY_RANK: Record<string, number> = { HIGH: 3, MED: 2, LOW: 1 };
 
 // ─── Handler registration ─────────────────────────────────────────────────────
 
@@ -170,16 +170,10 @@ function buildGithubComments(
     }
     const c = { ...raw, line };
 
-    const severityEmoji: Record<string, string> = {
-      HIGH: "🔴",
-      MED: "🟡",
-      LOW: "🔵",
-    };
-
     result.push({
       path: c.file,
       line: c.line,
-      body: `${severityEmoji[c.severity] ?? "⚪"} **[${c.severity}]** ${c.message}`,
+      body: `${SEVERITY_EMOJI[c.severity] ?? "⚪"} **[${c.severity}]** ${c.message}`,
     });
   }
 
