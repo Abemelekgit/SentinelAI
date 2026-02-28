@@ -52,6 +52,8 @@ export class DiffService {
    * filtering noise and ensuring the total character budget is respected.
    */
   parse(rawDiff: string): FileDiff[] {
+    if (!rawDiff || rawDiff.trim().length === 0) return [];
+
     const rawFiles = this.splitByFile(rawDiff);
     const results: FileDiff[] = [];
     let totalChars = 0;
@@ -87,9 +89,9 @@ export class DiffService {
     return sections.map((section) => {
       // Extract the "b/" path from the diff header (the new/destination file)
       const headerMatch = section.match(/^diff --git a\/.+ b\/(.+)$/m);
-      const path = headerMatch ? headerMatch[1].trim() : "unknown";
+      const path = headerMatch ? headerMatch[1].trim() : "";
       return { path, raw: section };
-    });
+    }).filter((f) => f.path.length > 0);
   }
 
   /** Returns true when the file should be skipped entirely. */
