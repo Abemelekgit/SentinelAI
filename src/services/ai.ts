@@ -77,6 +77,11 @@ export class AIService {
   private readonly gemini?: GoogleGenerativeAI;
   private readonly openai?: OpenAI;
 
+  /**
+   * Initialises the AI client based on the configured provider.
+   * Reads credentials from the validated `config` singleton — never from
+   * `process.env` directly.
+   */
   constructor() {
     if (config.aiProvider === "gemini" && config.geminiApiKey) {
       this.gemini = new GoogleGenerativeAI(config.geminiApiKey);
@@ -86,8 +91,16 @@ export class AIService {
   }
 
   /**
-   * Send the serialised diff to the LLM and parse the JSON response.
-   * Throws on unrecoverable errors; callers should handle gracefully.
+   * Perform a full AI code review on the serialised diff.
+   *
+   * The diff is wrapped in a user-prompt and sent to the configured LLM.
+   * The raw JSON response is strictly validated before being returned.
+   * Automatically retries up to 3 times on transient failures.
+   *
+   * @param serialisedDiff - Output of `DiffService.serialize()`.
+   * @returns A validated `ReviewResponse` object.
+   * @throws If the LLM returns non-JSON or a schema-invalid payload after
+   *         all retries are exhausted.
    */
   async review(serialisedDiff: string): Promise<ReviewResponse> {
     const userPrompt = `Here is the git diff to review:\n\n${serialisedDiff}`;
@@ -103,6 +116,12 @@ export class AIService {
 
   // ── Gemini ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Send a prompt to the Gemini model and return the raw text response.
+   * Uses `responseMimeType: "application/json"` to encourage well-formed JSON.
+   *
+   * @param userPrompt - The assembled user message including the diff payload.
+   */
   private async callGemini(userPrompt: string): Promise<string> {
     if (!this.gemini) throw new Error("Gemini client not initialised");
 
@@ -124,6 +143,12 @@ export class AIService {
 
   // ── OpenAI ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Send a prompt to the OpenAI model and return the raw text response.
+   * Uses `response_format: { type: "json_object" }` to enforce JSON output.
+   *
+   * @param userPrompt - The assembled user message including the diff payload.
+   */
   private async callOpenAI(userPrompt: string): Promise<string> {
     if (!this.openai) throw new Error("OpenAI client not initialised");
 
@@ -145,6 +170,12 @@ export class AIService {
 
   // ── Parsing & validation ───────────────────────────────────────────────────
 
+  /**
+   * Strip accidental markdown fences and parse the raw string as JSON.
+   * Delegates structural validation to `validate()`.
+   *
+   * @param raw - The raw text returned by the LLM.
+   */
   private parseResponse(raw: string): ReviewResponse {
     let parsed: unknown;
 
@@ -163,6 +194,13 @@ export class AIService {
     return this.validate(parsed);
   }
 
+  /**
+   * Validate that the parsed JSON object conforms to the `ReviewResponse`
+   * schema. Throws a descriptive error for any missing or mistyped field,
+   * preventing bad AI output from propagating to the GitHub API.
+   *
+   * @param data - The result of `JSON.parse()` — typed as `unknown`.
+   */
   private validate(data: unknown): ReviewResponse {
     if (!data || typeof data !== "object") {
       throw new Error("AI response is not an object");
