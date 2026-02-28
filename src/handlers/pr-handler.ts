@@ -17,17 +17,10 @@ import type { ReviewComment, ReviewResponse } from "../types.js";
 import { SEVERITY_RANK, SEVERITY_EMOJI } from "../types.js";
 import { config } from "../config.js";
 import { reviewLog } from "./dashboard.js";
-
-// ─── .sentinel.yaml schema ────────────────────────────────────────────────────
-
-interface SentinelConfig {
-  /** Glob patterns for files to always skip   (default: []) */
-  ignore?: string[];
-  /** Minimum severity to post as a comment    (default: "LOW") */
-  minSeverity?: "HIGH" | "MED" | "LOW";
-  /** Post a top-level review summary comment  (default: true) */
-  postSummary?: boolean;
-}
+import {
+  validateSentinelConfig,
+  type SentinelConfig,
+} from "../utils/sentinel-config.js";
 
 // Cache parsed .sentinel.yaml per commit SHA to avoid redundant API calls
 // on the same commit (e.g. re-runs within the same webhook delivery).
@@ -153,8 +146,15 @@ async function loadSentinelConfig(
 
     if ("content" in resp.data && typeof resp.data.content === "string") {
       const decoded = Buffer.from(resp.data.content, "base64").toString("utf-8");
-      const parsed = yaml.load(decoded) as SentinelConfig;
-      result = parsed ?? {};
+      const parsed = yaml.load(decoded);
+      const validation = validateSentinelConfig(parsed);
+      if (validation.valid) {
+        result = validation.config;
+      } else {
+        context.log.warn(
+          `[SentinelAI] .sentinel.yaml validation failed: ${validation.errors.join("; ")} — using defaults`
+        );
+      }
     }
   } catch {
     // File doesn't exist or is unreadable — use defaults
