@@ -1,0 +1,21 @@
+# .sentinel.yaml — SentinelAI per-repository configuration
+#
+# Place this file in the root of any repo where SentinelAI is installed.
+# All fields are optional; shown values are the defaults.
+
+# Glob patterns for files SentinelAI should skip entirely.
+# Uses minimatch syntax (same as .gitignore patterns).
+ignore:
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "**/__tests__/**"
+  - "docs/**"
+  - "*.md"
+
+# Minimum severity level for a comment to be posted on the PR.
+# Options: HIGH | MED | LOW
+# Set to "HIGH" on busy repos to reduce noise.
+minSeverity: LOW
+
+# Whether to post the top-level summary review comment (score + table).
+postSummary: true
