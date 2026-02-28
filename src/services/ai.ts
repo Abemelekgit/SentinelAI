@@ -211,9 +211,11 @@ export class AIService {
     if (typeof obj["summary"] !== "string") {
       throw new Error('AI response missing "summary" string');
     }
-    if (typeof obj["score"] !== "number" || obj["score"] < 1 || obj["score"] > 10) {
-      throw new Error('AI response "score" must be a number between 1 and 10');
+    if (typeof obj["score"] !== "number" || isNaN(obj["score"])) {
+      throw new Error('AI response "score" must be a number');
     }
+    // Clamp defensively — LLMs occasionally return 0 or 11
+    const score = Math.min(10, Math.max(1, Math.round(obj["score"] as number)));
     if (!Array.isArray(obj["comments"])) {
       throw new Error('AI response missing "comments" array');
     }
@@ -241,7 +243,7 @@ export class AIService {
 
     return {
       summary: obj["summary"] as string,
-      score: obj["score"] as number,
+      score,
       comments,
     };
   }
