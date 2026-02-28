@@ -213,6 +213,9 @@ function buildGithubComments(
   fileMap: Map<string, FileDiff>
 ): Array<{ path: string; line: number; body: string }> {
   const result: Array<{ path: string; line: number; body: string }> = [];
+  // Deduplicate by path+line — prevents double-posting the same issue
+  // when the AI returns the same location with slightly different wording.
+  const seen = new Set<string>();
 
   for (const raw of comments) {
     // Normalise paths: strip leading "./" or "/" that some LLMs emit
@@ -230,6 +233,10 @@ function buildGithubComments(
       );
     }
     const c = { ...raw, line };
+
+    const dedupeKey = `${fileDiff.path}:${c.line}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
 
     result.push({
       path: fileDiff.path, // always use the canonical path from the diff
