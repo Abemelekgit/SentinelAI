@@ -84,10 +84,13 @@ export function registerPRHandler(app: Probot): void {
         const fileMap = new Map(fileDiffs.map((d) => [d.path, d]));
         const githubComments = buildGithubComments(filtered, fileMap);
 
-        // ── 7. Post the review to GitHub ───────────────────────────────────
+        // ── 7. Apply a score label to the PR ──────────────────────────────
+        await applyScoreLabel(context, pullNumber, review.score);
+
+        // ── 8. Post the review to GitHub ───────────────────────────────────
         await postReview(context, review, githubComments, sentinelCfg, pullNumber);
 
-        // Record in the live dashboard log
+        // ── 9. Record in the live dashboard log ──────────────────────────
         reviewLog.push({
           ts: new Date().toLocaleString(),
           repo: `${owner}/${repo}`,
@@ -165,6 +168,43 @@ async function loadSentinelConfig(
   }
 
   return result;
+}
+
+/** Apply a SentinelAI quality label to the PR based on the review score. */
+async function applyScoreLabel(
+  context: Context<"pull_request">,
+  pullNumber: number,
+  score: number
+): Promise<void> {
+  const label =
+    score >= 9 ? "sentinel: excellent ✅" :
+    score >= 7 ? "sentinel: good 🟡" :
+    score >= 5 ? "sentinel: needs work 🟠" :
+                 "sentinel: critical 🔴";
+
+  const color =
+    score >= 9 ? "0e8a16" :
+    score >= 7 ? "e4e669" :
+    score >= 5 ? "f9a825" :
+                 "b60205";
+
+  try {
+    // Ensure the label exists in the repo (create if absent)
+    await context.octokit.issues.createLabel({
+      ...context.repo(),
+      name: label,
+      color,
+      description: `SentinelAI code quality score: ${score}/10`,
+    });
+  } catch {
+    // Label already exists — that's fine
+  }
+
+  await context.octokit.issues.addLabels({
+    ...context.repo(),
+    issue_number: pullNumber,
+    labels: [label],
+  });
 }
 
 /** Convert AI comments to the shape expected by Octokit's createReview. */
